@@ -12,10 +12,11 @@ import pcbnew
 from . import gcode, geometry, holes, ops, verify
 
 BREAKTHROUGH_MM = 0.2   # go past the far face; a sacrificial layer takes it
+SUFFIX = "_z1.ngc"      # appended to the board name to make the output file
 
 
 class Options(object):
-    def __init__(self, outfile,
+    def __init__(self, outdir,
                  do_drill=True, do_cut=True, include_vias=False,
                  depth=None, rpm=13000,
                  bit_type=holes.ENDMILL,
@@ -176,6 +177,13 @@ def build(board, opt, log=None):
     return text
 
 
+def output_path(board, outdir):
+    """<outdir>/<board name>_z1.ngc. The filename always follows the board."""
+    stem = os.path.splitext(os.path.basename(board.GetFileName() or ""))[0]
+    return os.path.join(os.path.abspath(os.path.expanduser(outdir.strip())),
+                        (stem or "board") + SUFFIX)
+
+
 def write(board, opt, log=None):
     """Build, then write. Creates the output directory if it is missing.
 
@@ -183,21 +191,21 @@ def write(board, opt, log=None):
     directory gets created for output that is never going to arrive.
     """
     log = log or (lambda m: None)
-    if not (opt.outfile or "").strip():
-        raise gcode.GcodeError("No output file given.")
+    if not (opt.outdir or "").strip():
+        raise gcode.GcodeError("No output folder given.")
     text = build(board, opt, log=log)
 
-    path = os.path.abspath(os.path.expanduser(opt.outfile.strip()))
-    if os.path.isdir(path):
+    path = output_path(board, opt.outdir)
+    folder = os.path.dirname(path)
+    if os.path.isfile(folder):
         raise gcode.GcodeError(
-            "%s is a directory, not a file. Give the .ngc a filename." % path)
-    parent = os.path.dirname(path)
-    if parent and not os.path.isdir(parent):
+            "%s is a file, not a folder. Pick a folder for the g-code." % folder)
+    if not os.path.isdir(folder):
         try:
-            os.makedirs(parent)
+            os.makedirs(folder)
         except OSError as e:
-            raise gcode.GcodeError("Could not create %s: %s" % (parent, e))
-        log("Created %s" % parent)
+            raise gcode.GcodeError("Could not create %s: %s" % (folder, e))
+        log("Created %s" % folder)
     try:
         with open(path, "w") as fh:
             fh.write(text)

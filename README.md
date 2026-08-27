@@ -106,9 +106,11 @@ find . -name __pycache__ -type d -exec rm -rf {} +
 
 ## Where it writes
 
-Defaults to `Production/<board>_z1.ngc` beside the `.kicad_pcb`, creating the
-folder if it is not there yet. Generated g-code is a build artifact, so it wants
-its own folder: one gitignore line, and no hesitation about deleting it.
+The dialog takes a **folder**, matching `kicad-lightburn-plugin`'s "Output
+folder"; the filename always follows the board (`<board>_z1.ngc`). It defaults
+to `Production/` beside the `.kicad_pcb` and creates it if it is not there yet.
+Generated g-code is a build artifact, so it wants its own folder: one gitignore
+line, and no hesitation about deleting it.
 
 ```gitignore
 Production/*.ngc

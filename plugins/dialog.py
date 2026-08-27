@@ -12,7 +12,8 @@ INTRO = ("Writes ONE Makera Z1 program that makes the board's holes, stops for "
          "datum the LightBurn artwork uses. Hover any field for details.")
 
 TIPS = {
-    "outfile": "Where the .ngc is written.\n\n"
+    "outdir":  "Folder the .ngc is written to. The filename always follows the "
+               "board: <board name>_z1.ngc.\n\n"
                "Defaults to a Production/ folder beside the .kicad_pcb, created "
                "if it is not there yet. Generated g-code is a build artifact: "
                "keeping it in its own folder means one gitignore line and no "
@@ -92,7 +93,7 @@ TIPS = {
 
 
 class SettingsDialog(wx.Dialog):
-    def __init__(self, parent, default_file, default_depth):
+    def __init__(self, parent, default_dir, default_depth):
         wx.Dialog.__init__(self, parent, title="Z1 drill & cutout g-code",
                            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.ctrls = {}
@@ -113,7 +114,7 @@ class SettingsDialog(wx.Dialog):
         grid = wx.FlexGridSizer(0, 4, 6, 8)
         grid.AddGrowableCol(1, 1)
 
-        self._path_row(grid, "outfile", "Output file", default_file)
+        self._dir_row(grid, "outdir", "Output folder", default_dir)
         self._num_row(grid, "depth", "Cut depth (mm)", default_depth,
                       "rpm", "Spindle (rpm)", 13000)
         grid.AddSpacer(1); grid.AddSpacer(1); grid.AddSpacer(1); grid.AddSpacer(1)
@@ -184,7 +185,7 @@ class SettingsDialog(wx.Dialog):
         else:
             self._labelled(grid, k2, l2, v2)
 
-    def _path_row(self, grid, key, label, value):
+    def _dir_row(self, grid, key, label, value):
         st = wx.StaticText(self, label=label)
         st.SetToolTip(TIPS[key])
         tc = wx.TextCtrl(self, value=value)
@@ -198,11 +199,10 @@ class SettingsDialog(wx.Dialog):
         self.ctrls[key] = tc
 
     def _browse(self, tc):
-        d = wx.FileDialog(self, "Write g-code to",
-                          defaultDir=os.path.dirname(tc.GetValue()),
-                          defaultFile=os.path.basename(tc.GetValue()),
-                          wildcard="G-code (*.ngc)|*.ngc|All files|*",
-                          style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        # The folder need not exist yet -- Production/ usually will not, and
+        # write() creates it. So do not demand DD_DIR_MUST_EXIST.
+        d = wx.DirDialog(self, "Write g-code to", defaultPath=tc.GetValue(),
+                         style=wx.DD_DEFAULT_STYLE)
         if d.ShowModal() == wx.ID_OK:
             tc.SetValue(d.GetPath())
         d.Destroy()
@@ -212,7 +212,7 @@ class SettingsDialog(wx.Dialog):
         g = lambda k: self.ctrls[k].GetValue()
         num = lambda k: float(g(k))
         return dict(
-            outfile=g("outfile").strip(),
+            outdir=g("outdir").strip(),
             do_drill=g("drill"), do_cut=g("cut"),
             include_vias=g("vias"), pause_for_pins=g("pause"),
             depth=num("depth"), rpm=int(num("rpm")),

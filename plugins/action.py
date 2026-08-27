@@ -54,9 +54,7 @@ class Z1GcodePlugin(pcbnew.ActionPlugin):
 
         src = board.GetFileName() or ""
         default = os.path.join(
-            os.path.dirname(src) or os.path.expanduser("~"),
-            OUTPUT_SUBDIR,
-            (os.path.splitext(os.path.basename(src))[0] or "board") + "_z1.ngc")
+            os.path.dirname(src) or os.path.expanduser("~"), OUTPUT_SUBDIR)
         dlg = dialog.SettingsDialog(None, default, program.default_depth(board))
         if dlg.ShowModal() != wx.ID_OK:
             dlg.Destroy()
