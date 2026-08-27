@@ -83,6 +83,12 @@ TIPS = {
                "The difference between this and the cut depth is how much "
                "material holds the part. -1.0 against a 1.8mm cut leaves 0.6mm "
                "on a 1.6mm board -- enough to hold, thin enough to snap off.",
+    "sheet":   "Also write <board>_z1_setup.txt beside the g-code.\n\n"
+               "The tool plan in printable form: which bit goes in for each "
+               "tool number, in program order, plus the setup and what the "
+               "program does while it runs. The plan is the part you need in "
+               "your hand while swapping bits, and a dialog you already "
+               "dismissed is not in your hand.",
     "pause":   "Pause after cutting any holes that lie OUTSIDE the board "
                "outline, so you can fit dowel pins before the rest of the job.\n\n"
                "A hole beyond your own Edge.Cuts can only be a fixture hole. On "
@@ -141,7 +147,8 @@ class SettingsDialog(wx.Dialog):
                 ("drill", "Make the holes", True),
                 ("cut", "Cut outline", True),
                 ("pause", "Pause for dowel pins after registration holes", True),
-                ("vias", "Also drill vias (NOT for ViaGrid blanks)", False)):
+                ("vias", "Also drill vias (NOT for ViaGrid blanks)", False),
+                ("sheet", "Write a setup sheet (.txt) next to the g-code", True)):
             cb = wx.CheckBox(self, label=label)
             cb.SetValue(default)
             cb.SetToolTip(TIPS[key])
@@ -215,6 +222,7 @@ class SettingsDialog(wx.Dialog):
             outdir=g("outdir").strip(),
             do_drill=g("drill"), do_cut=g("cut"),
             include_vias=g("vias"), pause_for_pins=g("pause"),
+            write_sheet=g("sheet"),
             depth=num("depth"), rpm=int(num("rpm")),
             bit_type=("endmill", "drill")[self.bit.GetSelection()],
             hole_tool=int(num("dtool")), hole_dia=num("ddia"),

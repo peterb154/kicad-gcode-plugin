@@ -126,7 +126,9 @@ class Writer(object):
         self.rule()
         self.comment(title)
         for nline in notes:
-            self.comment(nline)
+            # A blank note is a spacer; "(  )" is legal but reads as noise in a
+            # file the operator is meant to eyeball.
+            self.raw("" if not nline.strip() else "( %s )" % nline)
         self.rule()
         self.raw()
         self.raw("G21      ( mm )")

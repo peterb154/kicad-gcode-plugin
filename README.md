@@ -26,6 +26,8 @@ entire contract between them.
    tabs, because that's the op that frees the part.
 4. **Verifies its own output** and refuses to write anything that would
    misbehave on the machine.
+5. **Writes a setup sheet** beside the g-code with the tool plan in printable
+   form.
 
 ## Which bit is in the spindle
 
@@ -118,6 +120,30 @@ Production/*.ngc
 
 Change `OUTPUT_SUBDIR` in `action.py` for a different convention, or just Browse
 somewhere else — the dialog only pre-fills the path.
+
+## The setup sheet
+
+Alongside `<board>_z1.ngc` it writes `<board>_z1_setup.txt` — the tool plan in
+the form you actually need it, which is in your hand at the machine rather than
+in a dialog you already dismissed. The same plan is rendered into the g-code
+header, so the file is self-describing too.
+
+```
+TOOLS, in program order
+----------------------------------------------------------------
+  T1     2.05 mm  TWIST DRILL                2 registration hole(s), pecked
+  T2     0.90 mm  TWIST DRILL                2 inside hole(s), pecked
+  T9     1.20 mm  CORN/FISHTAIL END MILL     outline 132.8mm, 4 tab(s)
+
+You will be asked to install:
+----------------------------------------------------------------
+  T1   2.05mm TWIST DRILL (NOT an end mill)
+  T9   1.20mm CORN/FISHTAIL END MILL (NOT a twist drill)
+```
+
+It also carries the setup steps, the sacrificial-layer warning, where the
+program pauses for dowel pins, and any cutout too small to machine. Untick
+**Write a setup sheet** to skip it.
 
 ## Running the output
 

@@ -64,8 +64,8 @@ class Z1GcodePlugin(pcbnew.ActionPlugin):
 
         lines = []
         try:
-            path = program.write(board, program.Options(**vals),
-                                 log=lines.append)
+            written = program.write(board, program.Options(**vals),
+                                    log=lines.append)
         except EXPECTED as e:
             wx.MessageBox("%s\n\nNothing was written." % e,
                           "Cannot generate", wx.OK | wx.ICON_ERROR)
@@ -77,7 +77,9 @@ class Z1GcodePlugin(pcbnew.ActionPlugin):
 
         wx.MessageBox(
             "\n".join(lines)
-            + "\n\nWrote: %s\n\nUSE A SACRIFICIAL LAYER. Set XY origin to the "
-              "drill/place origin, register the first tool, Auto Z Probe ON."
-            % path,
+            + "\n\nWrote into %s:\n  %s"
+              % (os.path.dirname(written[0]),
+                 "\n  ".join(os.path.basename(f) for f in written))
+            + "\n\nUSE A SACRIFICIAL LAYER. Set XY origin to the drill/place "
+              "origin, register the first tool, Auto Z Probe ON.",
             "G-code written", wx.OK | wx.ICON_INFORMATION)
