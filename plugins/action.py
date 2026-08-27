@@ -75,5 +75,5 @@ class Z1GcodePlugin(pcbnew.ActionPlugin):
             "\n".join(lines)
             + "\n\nWrote: %s\n\nUSE A SACRIFICIAL LAYER. Set XY origin to the "
               "drill/place origin, register the first tool, Auto Z Probe ON."
-            % os.path.basename(path),
+            % path,
             "G-code written", wx.OK | wx.ICON_INFORMATION)

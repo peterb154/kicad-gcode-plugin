@@ -124,7 +124,30 @@ def build(board, opt, log=None):
 
 
 def write(board, opt, log=None):
+    """Build, then write. Creates the output directory if it is missing.
+
+    build() runs FIRST on purpose: if the board cannot produce valid g-code, no
+    directory gets created for output that is never going to arrive.
+    """
+    log = log or (lambda m: None)
+    if not (opt.outfile or "").strip():
+        raise gcode.GcodeError("No output file given.")
     text = build(board, opt, log=log)
-    with open(opt.outfile, "w") as fh:
-        fh.write(text)
-    return opt.outfile
+
+    path = os.path.abspath(os.path.expanduser(opt.outfile.strip()))
+    if os.path.isdir(path):
+        raise gcode.GcodeError(
+            "%s is a directory, not a file. Give the .ngc a filename." % path)
+    parent = os.path.dirname(path)
+    if parent and not os.path.isdir(parent):
+        try:
+            os.makedirs(parent)
+        except OSError as e:
+            raise gcode.GcodeError("Could not create %s: %s" % (parent, e))
+        log("Created %s" % parent)
+    try:
+        with open(path, "w") as fh:
+            fh.write(text)
+    except OSError as e:
+        raise gcode.GcodeError("Could not write %s: %s" % (path, e))
+    return path
