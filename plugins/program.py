@@ -16,13 +16,15 @@ import pcbnew
 from . import gcode, geometry, holes, ops, verify
 
 BREAKTHROUGH_MM = 0.2      # go past the far face; a sacrificial layer takes it
-SUFFIX = "_z1.ngc"         # appended to the board name for the g-code
-SHEET_SUFFIX = "_z1_setup.txt"   # ... and for the setup sheet beside it
+# Output is named for what is in it, so a holes-only run and an outline-only
+# run can live side by side. Splitting them is the normal shape when something
+# else happens to the board in between -- ablation, plating, inspection.
+TAGS = {(True, True): "", (True, False): "_holes", (False, True): "_outline"}
 
 
 class Options(object):
     def __init__(self, outdir,
-                 do_drill=True, do_cut=True, include_vias=False,
+                 do_drill=True, do_cut=True, include_vias=True,
                  depth=None, rpm=13000,
                  bit_type=holes.ENDMILL,
                  hole_tool=1, hole_dia=0.7,
@@ -178,7 +180,9 @@ def emit(job, log=None):
                      first=True)
         first = False
         if job.reg:
-            w.comment("-- registration holes first, so the blank can be pinned --")
+            w.comment("-- holes outside the outline, cut first%s --"
+                      % (", so the blank can be pinned"
+                         if (opt.pause_for_pins and job.inside) else ""))
             ops.drill_all(w, job.reg, opt.hole_dia, job.depth, opt.hole_feed,
                           opt.hole_plunge, opt.helix_pitch)
             if opt.pause_for_pins and job.inside:
@@ -278,11 +282,13 @@ def setup_sheet(job, gcode_path):
     return "\n".join(x for x in L if x is not None) + "\n"
 
 
-def output_path(board, outdir, suffix=SUFFIX):
-    """<outdir>/<board name><suffix>. The filename always follows the board."""
+def output_path(board, opt, sheet=False):
+    """<outdir>/<board>_z1[_holes|_outline][.ngc|_setup.txt]."""
     stem = os.path.splitext(os.path.basename(board.GetFileName() or ""))[0]
-    return os.path.join(os.path.abspath(os.path.expanduser(outdir.strip())),
-                        (stem or "board") + suffix)
+    return os.path.join(
+        os.path.abspath(os.path.expanduser(opt.outdir.strip())),
+        "%s_z1%s%s" % (stem or "board", TAGS[(bool(opt.do_drill), bool(opt.do_cut))],
+                       "_setup.txt" if sheet else ".ngc"))
 
 
 def build(board, opt, log=None):
@@ -302,7 +308,7 @@ def write(board, opt, log=None):
     job = Job(board, opt)
     text = emit(job, log=log)
 
-    path = output_path(board, opt.outdir)
+    path = output_path(board, opt)
     folder = os.path.dirname(path)
     if os.path.isfile(folder):
         raise gcode.GcodeError(
@@ -316,7 +322,7 @@ def write(board, opt, log=None):
 
     written = []
     for target, body in ((path, text),
-                         (output_path(board, opt.outdir, SHEET_SUFFIX),
+                         (output_path(board, opt, sheet=True),
                           setup_sheet(job, path) if opt.write_sheet else None)):
         if body is None:
             continue

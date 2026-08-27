@@ -26,11 +26,13 @@ TIPS = {
     "rpm":     "Spindle speed. The Z1 tops out at 13000 rpm and the generator "
                "refuses anything higher.",
     "vias":    "Drill vias as well as through-hole pads.\n\n"
-               "OFF by default, and that default is deliberate. On a ViaGrid "
-               "blank the vias are already in the blank -- drilling them "
-               "destroys the one feature you bought the blank for. On plain "
-               "stock a 0.2mm grid via is far below the smallest bit in the "
-               "kit anyway. Turn this on only for a board that is neither.",
+               "ON by default. On unplated stock a via is a hole you put a "
+               "wire through and solder both sides -- skip it and you get a "
+               "board that looks right and has no connection between layers.\n\n"
+               "Untick it for stock that arrives with its vias already there, "
+               "such as a ViaGrid blank. If you forget, nothing is destroyed: "
+               "a 0.2mm grid via is smaller than any bit that could make it, "
+               "so the job is refused rather than run.",
     "drill":   "Make the board's holes with the bit type selected above.",
     "cut":     "Cut the board outline, offset outward by the cutter radius so "
                "the tool rides on the waste side of the line. Internal cutouts "
@@ -146,7 +148,7 @@ class SettingsDialog(wx.Dialog):
                 ("drill", "Make the holes", True),
                 ("cut", "Cut outline", True),
                 ("pause", "Pause for dowel pins after registration holes", True),
-                ("vias", "Also drill vias (NOT for ViaGrid blanks)", False),
+                ("vias", "Drill vias (untick for pre-drilled stock)", True),
                 ("sheet", "Write a setup sheet (.txt) next to the g-code", True)):
             cb = wx.CheckBox(self, label=label)
             cb.SetValue(default)

@@ -31,18 +31,20 @@ entire contract between them.
 
 ## Which holes it makes
 
-**Footprint pads are drilled. Vias are skipped.** That is the whole rule, and it
-is the right split for pre-drilled stock like a [ViaGrid](https://github.com/opulo-inc/viagrid)
-blank without needing to know anything about it: the blank's via grid and its
-mounting holes are vias, and your through-hole parts are pads. Drop a THT
-connector on a 6034 blank and you get its three holes and nothing else.
+Through-hole pads and vias, both on by default. On unplated stock a via is a
+hole you put a wire through and solder on both sides — skip it and you get a
+board that looks right and has no connection between layers.
 
-Tick **Also drill vias** only for stock where the vias are not already there.
-On a ViaGrid blank it is refused anyway, since a 0.20mm grid via is smaller
-than any bit that could make it.
+Untick **Drill vias** for stock that arrives with its vias already there, such
+as a [ViaGrid](https://github.com/opulo-inc/viagrid) blank, where the via grid
+*and* the mounting holes are both vias. Forgetting costs nothing: a 0.20mm grid
+via is smaller than any bit that could make it, so the job is refused rather
+than run. The reverse mistake is the dangerous one, which is why the default
+sits where it does — a missing via is silent.
 
-The one case this does not cover: a mounting hole drawn as a *footprint* that
-duplicates one already in the blank. That is a pad, so it gets drilled.
+Holes lying **outside** `Edge.Cuts` are treated as fixture holes: cut first, so
+the blank can be pinned before anything else happens, with an optional pause to
+fit the pins. They are always cut first; the checkbox only controls the pause.
 
 ## Which bit is in the spindle
 
@@ -122,6 +124,18 @@ find . -name __pycache__ -type d -exec rm -rf {} +
 ```
 
 ## Where it writes
+
+Output is named for what is in it — `_holes`, `_outline`, or neither when a run
+does both — so a split job does not overwrite itself:
+
+```
+PCB1_z1_holes.ngc      PCB1_z1_holes_setup.txt
+PCB1_z1_outline.ngc    PCB1_z1_outline_setup.txt
+```
+
+Splitting is the normal shape when something happens to the board in between:
+drill, take it away to be ablated or plated or inspected, bring it back, cut it
+free.
 
 The dialog takes a **folder**, matching `kicad-lightburn-plugin`'s "Output
 folder"; the filename always follows the board (`<board>_z1.ngc`). It defaults
