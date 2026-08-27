@@ -1,0 +1,19 @@
+{
+  "$schema": "https://go.kicad.org/pcm/schemas/v1",
+  "name": "Z1 Drill & Cutout G-code",
+  "description": "Generate Makera Z1 g-code to drill holes and cut the board outline",
+  "description_full": "Emits a single Makera Z1 (Carvera/Smoothieware) g-code program that drills the board's through-holes and cuts the outline to size, with an in-program manual tool change between the two. Intended for a split workflow where a UV laser ablates copper and solder mask and the mill only does the through-cutting work. Geometry comes straight from the pcbnew API -- no Gerbers, no pcb2gcode, no external tools. Holes are helically milled, the outline is offset by the cutter radius with holding tabs, and everything is referenced to the drill/place origin.",
+  "identifier": "com.github.peterb154.kicad-gcode-plugin",
+  "type": "plugin",
+  "author": {
+    "name": "Brian Peterson",
+    "contact": { "web": "https://github.com/peterb154/kicad-gcode-plugin" }
+  },
+  "license": "MIT",
+  "resources": {
+    "homepage": "https://github.com/peterb154/kicad-gcode-plugin"
+  },
+  "versions": [
+    { "version": "0.1.0", "status": "development", "kicad_version": "10.0" }
+  ]
+}
