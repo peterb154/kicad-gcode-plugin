@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Z1 drill and cutout: a bit meeting stock.
+
+       Drawn for 24px first, not scaled down from something pretty. That means
+       every edge on a whole or half unit, no shape under ~2 units, and no
+       strokes at all: a sub-pixel outline just dissolves into grey mush at icon
+       size. (Measured. The first cut of this icon read as a thermometer.)
+       Contrast comes from the two shank tones instead, so the silhouette
+       survives on both a light and a dark toolbar without needing an outline.
+
+       The bit is drawn pointed. The real ones are flat-bottomed corn/fishtail
+       cutters, but a flat tip at this size renders as a blob, and the icon's
+       job is to be recognised in a toolbar, not to document the tooling. -->
+
+  <!-- board -->
+  <rect x="1" y="17.5" width="22" height="5" rx="0.6" fill="#2E9E5B"/>
+  <rect x="1" y="17.5" width="22" height="1.2" fill="#4FCB80"/>
+  <rect x="1" y="21.1" width="22" height="1.4" rx="0.6" fill="#186336"/>
+
+  <!-- drilled holes, placed clear of the bit so it never covers them -->
+  <circle cx="5.2" cy="19.9" r="1.7" fill="#0E2B1A"/>
+  <circle cx="18.8" cy="19.9" r="1.7" fill="#0E2B1A"/>
+
+  <!-- bit: dark body, light left face for the cylinder, collar for character -->
+  <path d="M9 1.5 h6 v10 l-3 4.4 l-3 -4.4 z" fill="#5A6E78"/>
+  <path d="M9 1.5 h3 v14.4 l-3 -4.4 z" fill="#B9CAD2"/>
+  <rect x="9" y="9" width="6" height="1.2" fill="#37474F"/>
+</svg>

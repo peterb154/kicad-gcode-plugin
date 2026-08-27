@@ -115,6 +115,25 @@ reported rather than silently skipped, because "nothing was machined there" and
 - **Vias are off by default and that's deliberate.** On a ViaGrid blank the vias
   are already in the blank; drilling them destroys the feature you bought it for.
 
+## The icon
+
+`resources/icon.svg` is the source; `icon.png` (26px, toolbar) and `icon_64.png`
+(PCM listing) are rendered from it with `rsvg-convert`.
+
+It was drawn for 24px rather than shrunk down from something larger, which is a
+real constraint and not a stylistic one: strokes thinner than a pixel dissolve,
+so the icon carries no outlines at all and gets its contrast from two shank
+tones instead. That also lets it survive on a light and a dark toolbar without a
+second asset. The first attempt ignored this and read as a thermometer.
+
+The bit is drawn pointed even though the real ones are flat-bottomed
+corn/fishtail cutters -- a flat tip at 24px renders as a blob. Regenerate with:
+
+```sh
+rsvg-convert -w 26 -h 26 resources/icon.svg -o resources/icon.png
+rsvg-convert -w 64 -h 64 resources/icon.svg -o resources/icon_64.png
+```
+
 ## Licence
 
 MIT
