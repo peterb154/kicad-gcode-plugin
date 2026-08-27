@@ -42,8 +42,12 @@ KiCad 10.x and its bundled Python. That's all.
 ## Install (development)
 
 ```sh
-ln -s "$PWD" ~/Documents/KiCad/10.0/3rdparty/plugins/kicad-gcode-plugin
+ln -s "$PWD/plugins" ~/Documents/KiCad/10.0/3rdparty/plugins/kicad-gcode-plugin
 ```
+
+The link points at `plugins/`, not the repo root — KiCad loads that directory as
+the Python package. `resources/` then sits a level above it, which is why
+`_find_icon` looks for both that layout and the PCM one.
 
 Then **Tools → External Plugins → Refresh Plugins**.
 
