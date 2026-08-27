@@ -3,13 +3,12 @@ import os
 
 import wx
 
-INTRO = ("Writes ONE Makera Z1 program that makes the board's holes, stops for "
-         "a manual tool change, then cuts the outline to size.\n"
-         "CHECK THE BIT TYPE below -- an end mill mills holes sideways and a "
-         "twist drill cannot, so the wrong bit in the spindle breaks.\n"
-         "The outline is cut last on purpose -- it is the op that frees the "
-         "part. Everything is referenced to the drill/place origin, the same "
-         "datum the LightBurn artwork uses. Hover any field for details.")
+INTRO = ("Writes ONE Z1 program: holes first, manual tool change, then the "
+         "outline last -- that is the op that frees the part.\n"
+         "CHECK THE BIT TYPE below. An end mill mills sideways; a twist "
+         "drill cannot, and breaks if asked to.\n"
+         "All coordinates use the drill/place origin. Hover any field for "
+         "details.")
 
 TIPS = {
     "outdir":  "Folder the .ngc is written to. The filename always follows the "
