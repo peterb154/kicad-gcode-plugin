@@ -29,6 +29,21 @@ entire contract between them.
 5. **Writes a setup sheet** beside the g-code with the tool plan in printable
    form.
 
+## Which holes it makes
+
+**Footprint pads are drilled. Vias are skipped.** That is the whole rule, and it
+is the right split for pre-drilled stock like a [ViaGrid](https://github.com/opulo-inc/viagrid)
+blank without needing to know anything about it: the blank's via grid and its
+mounting holes are vias, and your through-hole parts are pads. Drop a THT
+connector on a 6034 blank and you get its three holes and nothing else.
+
+Tick **Also drill vias** only for stock where the vias are not already there.
+On a ViaGrid blank it is refused anyway, since a 0.20mm grid via is smaller
+than any bit that could make it.
+
+The one case this does not cover: a mounting hole drawn as a *footprint* that
+duplicates one already in the blank. That is a pad, so it gets drilled.
+
 ## Which bit is in the spindle
 
 This is the one setting you cannot get wrong, so it is a radio button rather
