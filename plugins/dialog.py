@@ -13,8 +13,11 @@ INTRO = ("Writes ONE Makera Z1 program that makes the board's holes, stops for "
 
 TIPS = {
     "outfile": "Where the .ngc is written.\n\n"
-               "Defaults next to the .kicad_pcb. Upload it to the machine with "
-               "the Carvera Controller app.",
+               "Defaults to a Production/ folder beside the .kicad_pcb, created "
+               "if it is not there yet. Generated g-code is a build artifact: "
+               "keeping it in its own folder means one gitignore line and no "
+               "hesitation about deleting it.\n\n"
+               "Upload the file to the machine with the Carvera Controller app.",
     "depth":   "How far below the top surface the tool goes, in millimetres.\n\n"
                "Defaults to the board thickness from Board Setup plus 0.2mm of "
                "breakthrough. Through-cuts on this machine run ~0.2mm past, so "

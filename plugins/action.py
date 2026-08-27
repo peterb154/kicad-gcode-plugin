@@ -9,6 +9,11 @@ from . import dialog, gcode, geometry, holes, program, verify
 
 IDENTIFIER = "com.github.peterb154.kicad-gcode-plugin"
 
+# Generated g-code goes in a subfolder beside the board rather than next to it.
+# It is a build artifact, so it wants to be somewhere you can gitignore in one
+# line and delete without thinking. Created on demand if it is not there yet.
+OUTPUT_SUBDIR = "Production"
+
 # Anything the generator raises on purpose. These carry an explanation written
 # for the operator, so they are shown as-is rather than as a stack trace.
 EXPECTED = (gcode.GcodeError, geometry.GeometryError, holes.HoleError,
@@ -48,9 +53,10 @@ class Z1GcodePlugin(pcbnew.ActionPlugin):
             return
 
         src = board.GetFileName() or ""
-        default = os.path.join(os.path.dirname(src) or os.path.expanduser("~"),
-                               (os.path.splitext(os.path.basename(src))[0]
-                                or "board") + "_z1.ngc")
+        default = os.path.join(
+            os.path.dirname(src) or os.path.expanduser("~"),
+            OUTPUT_SUBDIR,
+            (os.path.splitext(os.path.basename(src))[0] or "board") + "_z1.ngc")
         dlg = dialog.SettingsDialog(None, default, program.default_depth(board))
         if dlg.ShowModal() != wx.ID_OK:
             dlg.Destroy()

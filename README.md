@@ -104,6 +104,19 @@ the file, that is the tell. Clearing bytecode is a good reflex too:
 find . -name __pycache__ -type d -exec rm -rf {} +
 ```
 
+## Where it writes
+
+Defaults to `Production/<board>_z1.ngc` beside the `.kicad_pcb`, creating the
+folder if it is not there yet. Generated g-code is a build artifact, so it wants
+its own folder: one gitignore line, and no hesitation about deleting it.
+
+```gitignore
+Production/*.ngc
+```
+
+Change `OUTPUT_SUBDIR` in `action.py` for a different convention, or just Browse
+somewhere else — the dialog only pre-fills the path.
+
 ## Running the output
 
 **Use a sacrificial layer.** Through-cuts on this machine go ~0.2mm past the
