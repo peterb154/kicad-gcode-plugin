@@ -51,6 +51,22 @@ the Python package. `resources/` then sits a level above it, which is why
 
 Then **Tools → External Plugins → Refresh Plugins**.
 
+### Editing it: Refresh is not enough
+
+**Restart KiCad after changing anything under `plugins/`.** *Refresh Plugins*
+re-imports the top-level package, but the submodules it pulled in with
+`from . import program` are still sitting in `sys.modules`, so your edit does
+not take effect and KiCad keeps running the old code.
+
+This fails in the worst way — silently, with a traceback whose line numbers
+point at the *previous* version of the file, which sends you hunting for a bug
+you already fixed. If a traceback's line number doesn't match what you see in
+the file, that is the tell. Clearing bytecode is a good reflex too:
+
+```sh
+find . -name __pycache__ -type d -exec rm -rf {} +
+```
+
 ## Running the output
 
 **Use a sacrificial layer.** Through-cuts on this machine go ~0.2mm past the
