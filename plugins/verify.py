@@ -30,8 +30,15 @@ def _strip(line):
     return re.sub(r"\([^)]*\)", " ", line).split(";")[0]
 
 
-def check(text, max_depth, travel_limit=400.0):
-    """Raise VerifyError on anything that would misbehave on the machine."""
+def check(text, max_depth, travel_limit=400.0, no_arcs=False):
+    """Raise VerifyError on anything that would misbehave on the machine.
+
+    no_arcs is the twist-drill guard. The outline cut is emitted as straight
+    segments, so a helical hole is the only thing in this generator that can
+    produce a G2/G3 -- which means "contains no arcs" is a complete, checkable
+    proof that nothing asks a twist drill to move sideways. A drill has no side
+    flutes and no radial stiffness; one lateral move snaps it.
+    """
     problems = []
     lines = text.splitlines()
     saw_m6 = False
@@ -66,8 +73,13 @@ def check(text, max_depth, travel_limit=400.0):
                 problems.append("line %d: %s%g is beyond +/-%gmm -- almost "
                                 "certainly a units or origin bug"
                                 % (n, ax, words[ax], travel_limit))
-        if re.match(r"\s*G0?[23]\b", line) and not ("I" in words or "J" in words):
-            problems.append("line %d: arc with no I/J centre offset" % n)
+        if re.match(r"\s*G0?[23]\b", line):
+            if no_arcs:
+                problems.append(
+                    "line %d: arc (G2/G3) in a TWIST DRILL program -- a drill "
+                    "cannot cut sideways and would snap here" % n)
+            elif not ("I" in words or "J" in words):
+                problems.append("line %d: arc with no I/J centre offset" % n)
 
     if saw_motion_before_m6:
         problems.append(

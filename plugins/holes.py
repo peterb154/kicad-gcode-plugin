@@ -75,15 +75,57 @@ def partition(board, holes):
     return reg, inside
 
 
-def check_tool(holes, tool_dia):
-    """Refuse holes the tool cannot make. Milling needs tool <= hole."""
+# The two kinds of bit this can drive. They are NOT interchangeable, and the
+# difference is not cosmetic -- it decides whether the toolpath moves sideways.
+ENDMILL = "endmill"
+DRILL = "drill"
+
+BIT_LABEL = {
+    ENDMILL: "CORN/FISHTAIL END MILL",
+    DRILL: "TWIST DRILL",
+}
+
+
+def describe(bit_type, dia):
+    """The text an operator reads off the M6 prompt with a bit in their hand.
+
+    Deliberately shouty and deliberately says what NOT to load. "0.70mm bit" is
+    ambiguous between a 0.70mm corn and a 0.70mm twist drill, and loading the
+    wrong one of those snaps it on the first revolution.
+    """
+    if bit_type == ENDMILL:
+        return "%.2fmm %s (NOT a twist drill)" % (dia, BIT_LABEL[ENDMILL])
+    return "%.2fmm %s (NOT an end mill)" % (dia, BIT_LABEL[DRILL])
+
+
+def check_endmill(holes, tool_dia):
+    """An end mill mills sideways, so it must be no wider than the hole."""
     small = sorted({h.dia for h in holes if h.dia < tool_dia - 1e-6})
     if small:
         raise HoleError(
-            "The %.2fmm tool is bigger than %d hole size(s) on this board: %s. "
-            "A hole cannot be milled with a tool wider than the hole. Use a "
+            "The %.2fmm end mill is bigger than %d hole size(s) on this board: "
+            "%s. A hole cannot be milled with a tool wider than the hole. Use a "
             "smaller bit, or exclude those holes."
             % (tool_dia, len(small), ", ".join("%.2fmm" % d for d in small)))
+
+
+def check_drill(holes, max_changes):
+    """A twist drill only makes its own diameter, so every size needs its own bit.
+
+    There is no diameter mismatch to catch here -- the bit size is taken FROM
+    the hole. What can go wrong is the operator discovering mid-job that they
+    are being asked for eleven bits they may not own, so say it up front.
+    """
+    sizes = sorted({round(h.dia, 3) for h in holes})
+    if len(sizes) > max_changes:
+        raise HoleError(
+            "Twist drilling this board needs %d different drills (%s), which is "
+            "more than the %d tool changes allowed. A twist drill cannot cut "
+            "sideways, so it can only make a hole its own size -- either raise "
+            "the limit, or switch to an end mill and mill every size with one "
+            "bit." % (len(sizes), ", ".join("%.2fmm" % d for d in sizes),
+                      max_changes))
+    return sizes
 
 
 def by_diameter(holes):

@@ -18,20 +18,19 @@ class Options(object):
     def __init__(self, outfile,
                  do_drill=True, do_cut=True, include_vias=False,
                  depth=None, rpm=13000,
-                 drill_tool=1, drill_dia=0.7, drill_desc=None,
-                 drill_feed=60.0, drill_plunge=30.0, helix_pitch=0.15,
-                 cut_tool=2, cut_dia=1.2, cut_desc=None,
+                 bit_type=holes.ENDMILL,
+                 hole_tool=1, hole_dia=0.7,
+                 hole_feed=60.0, hole_plunge=30.0,
+                 helix_pitch=0.15, peck_depth=0.3, max_drill_changes=6,
+                 cut_tool=2, cut_dia=1.2,
                  cut_feed=150.0, cut_plunge=40.0, cut_stepdown=0.4,
                  tab_count=4, tab_width=1.0, tab_z=-1.0,
                  pause_for_pins=True):
         for k, v in list(locals().items()):
             if k != "self":
                 setattr(self, k, v)
-        # The tool description is what the M6 prompt shows the operator, so keep
-        # it honest about the diameter actually being used rather than a label
-        # left over from a different bit.
-        self.drill_desc = drill_desc or "%.2fmm bit" % drill_dia
-        self.cut_desc = cut_desc or "%.2fmm bit" % cut_dia
+        if bit_type not in (holes.ENDMILL, holes.DRILL):
+            raise gcode.GcodeError("Unknown bit type %r." % bit_type)
 
 
 def default_depth(board):
@@ -41,6 +40,29 @@ def default_depth(board):
     except Exception:
         t = 1.6
     return round((t if t > 0 else 1.6) + BREAKTHROUGH_MM, 2)
+
+
+def _drill_plan(opt, reg, inside):
+    """[(tool_number, diameter, holes, phase)] for twist drilling.
+
+    A twist drill only makes its own diameter, so each distinct size needs its
+    own bit and its own tool number. Registration sizes come first so the blank
+    can be pinned before anything else is cut. The same diameter appearing in
+    both phases gets two numbers on purpose -- re-requesting the number already
+    loaded can make the controller skip the setter re-zero.
+    """
+    plan, tnum = [], opt.hole_tool
+    for phase, group in (("registration", reg), ("inside", inside)):
+        for dia, hs in holes.by_diameter(group):
+            plan.append((tnum, dia, hs, phase))
+            tnum += 1
+    used = [t for t, _, _, _ in plan]
+    if opt.do_cut and opt.cut_tool in used:
+        raise gcode.GcodeError(
+            "Twist drilling needs tool numbers %s, which collides with the "
+            "cutter's T%d. Move the cutter to T%d or higher."
+            % (", ".join("T%d" % t for t in used), opt.cut_tool, max(used) + 1))
+    return plan
 
 
 def build(board, opt, log=None):
@@ -55,15 +77,19 @@ def build(board, opt, log=None):
             "would be cut through and the part would come loose mid-cut."
             % (opt.tab_z, depth))
 
-    reg, inside, all_holes = [], [], []
+    reg, inside, all_holes, plan = [], [], [], []
     if opt.do_drill:
         all_holes = holes.collect(board, include_vias=opt.include_vias)
         if not all_holes:
             raise gcode.GcodeError(
                 "No drillable holes found. This board has no through-hole pads "
                 "(vias are excluded unless you tick 'include vias').")
-        holes.check_tool(all_holes, opt.drill_dia)
         reg, inside = holes.partition(board, all_holes)
+        if opt.bit_type == holes.ENDMILL:
+            holes.check_endmill(all_holes, opt.hole_dia)
+        else:
+            holes.check_drill(all_holes, opt.max_drill_changes)
+            plan = _drill_plan(opt, reg, inside)
 
     paths, dropped = ([], 0)
     if opt.do_cut:
@@ -79,37 +105,59 @@ def build(board, opt, log=None):
         "Origin = KiCad drill/place (aux) origin. Set XY once; do not move it.",
         "Cut depth %.2fmm -- USE A SACRIFICIAL LAYER." % depth,
     ]
-    if opt.do_drill:
-        notes.append("T%d = %s : %d hole(s)"
-                     % (opt.drill_tool, opt.drill_desc, len(all_holes)))
+    if opt.do_drill and opt.bit_type == holes.ENDMILL:
+        notes.append("T%d = %s" % (opt.hole_tool,
+                                   holes.describe(holes.ENDMILL, opt.hole_dia)))
+        notes.append("  mills all %d hole(s); every size with this one bit"
+                     % len(all_holes))
+    elif opt.do_drill:
+        notes.append("BITS NEEDED, in this order:")
+        for tnum, dia, group, _ph in plan:
+            notes.append("  T%d = %s  (%d hole(s))"
+                         % (tnum, holes.describe(holes.DRILL, dia), len(group)))
     if opt.do_cut:
-        notes.append("T%d = %s : outline, %d tab(s) of %.2fmm at Z%.2f"
-                     % (opt.cut_tool, opt.cut_desc, opt.tab_count,
-                        opt.tab_width, opt.tab_z))
+        notes.append("T%d = %s" % (opt.cut_tool,
+                                   holes.describe(holes.ENDMILL, opt.cut_dia)))
+        notes.append("  outline, %d tab(s) of %.2fmm at Z%.2f"
+                     % (opt.tab_count, opt.tab_width, opt.tab_z))
     notes.append("SETUP: install the first tool, Change tool to register it,")
     notes.append("  set XY origin, Auto Z Probe ON, then Run.")
     w.header("Makera Z1 -- drill + outline cutout", notes)
 
     first = True
-    if opt.do_drill:
-        w.toolchange(opt.drill_tool, opt.drill_desc, first=True)
+    if opt.do_drill and opt.bit_type == holes.ENDMILL:
+        w.toolchange(opt.hole_tool, holes.describe(holes.ENDMILL, opt.hole_dia),
+                     first=True)
         first = False
         if reg:
             w.comment("-- registration holes first, so the blank can be pinned --")
-            ops.drill_all(w, reg, opt.drill_dia, depth, opt.drill_feed,
-                          opt.drill_plunge, opt.helix_pitch)
+            ops.drill_all(w, reg, opt.hole_dia, depth, opt.hole_feed,
+                          opt.hole_plunge, opt.helix_pitch)
             log("Registration holes (outside the outline): %d" % len(reg))
             if opt.pause_for_pins and inside:
                 w.pause("Fit the dowel pins, then press play")
         if inside:
             w.comment("-- through-holes --")
-            ops.drill_all(w, inside, opt.drill_dia, depth, opt.drill_feed,
-                          opt.drill_plunge, opt.helix_pitch)
+            ops.drill_all(w, inside, opt.hole_dia, depth, opt.hole_feed,
+                          opt.hole_plunge, opt.helix_pitch)
         for dia, group in holes.by_diameter(all_holes):
             log("  %.2fmm x %d" % (dia, len(group)))
+    elif opt.do_drill:
+        log("Twist drilling: %d bit change(s)" % len(plan))
+        paused = False
+        for tnum, dia, group, phase in plan:
+            if phase == "inside" and not paused and reg and opt.pause_for_pins:
+                w.pause("Fit the dowel pins, then press play")
+                paused = True
+            w.toolchange(tnum, holes.describe(holes.DRILL, dia), first=first)
+            first = False
+            w.comment("-- %s: %.2fmm x %d --" % (phase, dia, len(group)))
+            ops.peck_all(w, group, depth, opt.hole_feed, opt.peck_depth)
+            log("  T%d %.2fmm x %d (%s)" % (tnum, dia, len(group), phase))
 
     if opt.do_cut:
-        w.toolchange(opt.cut_tool, opt.cut_desc, first=first)
+        w.toolchange(opt.cut_tool, holes.describe(holes.ENDMILL, opt.cut_dia),
+                     first=first)
         w.comment("-- outline cutout (LAST: this frees the part) --")
         ops.cut_outline(w, paths, depth, opt.cut_stepdown, opt.cut_feed,
                         opt.cut_plunge, opt.tab_count, opt.tab_width, opt.tab_z)
@@ -118,7 +166,12 @@ def build(board, opt, log=None):
 
     w.footer()
     text = w.text()
-    stats = verify.check(text, depth)
+    # In drill mode the program must contain NO arcs at all: the outline cut is
+    # emitted as G1 segments (Clipper polygonises the curves), so helical hole
+    # milling is the only thing that can produce a G2/G3. A stray arc means a
+    # twist drill is about to be driven sideways.
+    stats = verify.check(text, depth,
+                         no_arcs=(opt.do_drill and opt.bit_type == holes.DRILL))
     log("Verified: %d lines, deepest Z %.3fmm." % (stats["lines"], stats["zmin"]))
     return text
 

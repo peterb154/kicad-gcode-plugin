@@ -3,8 +3,10 @@ import os
 
 import wx
 
-INTRO = ("Writes ONE Makera Z1 program that drills the board's holes, stops for "
+INTRO = ("Writes ONE Makera Z1 program that makes the board's holes, stops for "
          "a manual tool change, then cuts the outline to size.\n"
+         "CHECK THE BIT TYPE below -- an end mill mills holes sideways and a "
+         "twist drill cannot, so the wrong bit in the spindle breaks.\n"
          "The outline is cut last on purpose -- it is the op that frees the "
          "part. Everything is referenced to the drill/place origin, the same "
          "datum the LightBurn artwork uses. Hover any field for details.")
@@ -26,18 +28,39 @@ TIPS = {
                "destroys the one feature you bought the blank for. On plain "
                "stock a 0.2mm grid via is far below the smallest bit in the "
                "kit anyway. Turn this on only for a board that is neither.",
-    "drill":   "Drill the holes. Holes larger than the bit are milled "
-               "helically; holes the same size as the bit are plunged.",
+    "drill":   "Make the board's holes with the bit type selected above.",
     "cut":     "Cut the board outline, offset outward by the cutter radius so "
                "the tool rides on the waste side of the line. Internal cutouts "
                "are offset inward automatically.",
-    "dtool":   "Tool number for the drilling bit.\n\n"
+    "bit":     "WHICH KIND OF BIT goes in the spindle. These are not "
+               "interchangeable and picking wrong destroys the bit.\n\n"
+               "CORN / FISHTAIL END MILL -- holes are milled helically, so one "
+               "bit makes every hole size on the board. The path moves "
+               "sideways, which only an end mill can survive.\n\n"
+               "TWIST DRILL -- holes are pecked straight down with no sideways "
+               "motion at all. A drill has no side flutes and no radial "
+               "stiffness, so one lateral move snaps it. It can only make a "
+               "hole its own size, so every distinct diameter needs its own "
+               "bit and its own tool change.",
+    "peck":    "How deep each peck goes before the drill fully retracts to "
+               "clear chips, in millimetres. Twist drill mode only.\n\n"
+               "FR4 dust packs a small flute fast; that is what breaks drills "
+               "that are otherwise being used correctly.",
+    "maxchg":  "Refuse the job if twist drilling would need more bit changes "
+               "than this.\n\n"
+               "Stops you discovering at the machine that the board wants "
+               "eleven drills you may not own. An end mill does every size "
+               "with one bit.",
+    "dtool":   "Tool number for the hole bit.\n\n"
+               "In twist drill mode this is the FIRST number; each additional "
+               "diameter takes the next one up.\n\n"
                "Any T1-T99 makes M6 prompt for a manual swap and re-zero the "
                "bit on the setter. Give each physical bit its own number: if an "
                "M6 asks for the number already loaded, the controller may skip "
                "the re-zero.",
-    "ddia":    "Diameter of the drilling bit, in millimetres.\n\n"
-               "Must be no larger than the smallest hole on the board -- a hole "
+    "ddia":    "Diameter of the end mill, in millimetres. END MILL MODE ONLY -- "
+               "a twist drill's size is taken from each hole instead.\n\n"
+               "Must be no larger than the smallest hole on the board: a hole "
                "cannot be milled with a bit wider than the hole. The generator "
                "checks this and refuses rather than making a wrong hole.",
     "ctool":   "Tool number for the outline cutter. Must differ from the "
@@ -75,6 +98,15 @@ class SettingsDialog(wx.Dialog):
         intro.Wrap(560)
         outer.Add(intro, 0, wx.ALL, 12)
 
+        self.bit = wx.RadioBox(
+            self, label="Bit in the spindle for holes",
+            choices=["Corn / fishtail END MILL  (one bit, all sizes, helical)",
+                     "TWIST DRILL  (one bit per size, pecked, never sideways)"],
+            majorDimension=1, style=wx.RA_SPECIFY_COLS)
+        self.bit.SetToolTip(TIPS["bit"])
+        self.bit.Bind(wx.EVT_RADIOBOX, lambda _e: self._sync())
+        outer.Add(self.bit, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
+
         grid = wx.FlexGridSizer(0, 4, 6, 8)
         grid.AddGrowableCol(1, 1)
 
@@ -83,11 +115,12 @@ class SettingsDialog(wx.Dialog):
                       "rpm", "Spindle (rpm)", 13000)
         grid.AddSpacer(1); grid.AddSpacer(1); grid.AddSpacer(1); grid.AddSpacer(1)
 
-        self._num_row(grid, "dtool", "Drill tool #", 1, "ddia", "Drill dia (mm)", 0.7)
-        self._num_row(grid, "dfeed", "Drill feed (mm/min)", 60,
-                      "dplunge", "Drill plunge (mm/min)", 30)
+        self._num_row(grid, "dtool", "Hole tool #", 1, "ddia", "End mill dia (mm)", 0.7)
+        self._num_row(grid, "dfeed", "Hole feed (mm/min)", 60,
+                      "dplunge", "Hole plunge (mm/min)", 30)
         self._num_row(grid, "pitch", "Helix pitch (mm/turn)", 0.15,
-                      None, None, None)
+                      "peck", "Peck depth (mm)", 0.3)
+        self._num_row(grid, "maxchg", "Max bit changes", 6, None, None, None)
         grid.AddSpacer(1); grid.AddSpacer(1); grid.AddSpacer(1); grid.AddSpacer(1)
 
         self._num_row(grid, "ctool", "Cut tool #", 2, "cdia", "Cutter dia (mm)", 1.2)
@@ -101,7 +134,7 @@ class SettingsDialog(wx.Dialog):
 
         box = wx.BoxSizer(wx.VERTICAL)
         for key, label, default in (
-                ("drill", "Drill holes", True),
+                ("drill", "Make the holes", True),
                 ("cut", "Cut outline", True),
                 ("pause", "Pause for dowel pins after registration holes", True),
                 ("vias", "Also drill vias (NOT for ViaGrid blanks)", False)):
@@ -112,9 +145,21 @@ class SettingsDialog(wx.Dialog):
             box.Add(cb, 0, wx.TOP, 4)
         outer.Add(box, 0, wx.ALL, 12)
 
+        self._sync()
         btns = self.CreateStdDialogButtonSizer(wx.OK | wx.CANCEL)
         outer.Add(btns, 0, wx.EXPAND | wx.ALL, 12)
         self.SetSizerAndFit(outer)
+
+    def _sync(self):
+        """Grey out whatever the chosen bit type does not use.
+
+        The two modes take different settings, and leaving the unused ones live
+        invites tuning a number that is quietly ignored.
+        """
+        endmill = self.bit.GetSelection() == 0
+        for key, on in (("ddia", endmill), ("pitch", endmill),
+                        ("peck", not endmill), ("maxchg", not endmill)):
+            self.ctrls[key].Enable(on)
 
     # -- row helpers -----------------------------------------------------
     def _labelled(self, grid, key, label, value):
@@ -168,9 +213,11 @@ class SettingsDialog(wx.Dialog):
             do_drill=g("drill"), do_cut=g("cut"),
             include_vias=g("vias"), pause_for_pins=g("pause"),
             depth=num("depth"), rpm=int(num("rpm")),
-            drill_tool=int(num("dtool")), drill_dia=num("ddia"),
-            drill_feed=num("dfeed"), drill_plunge=num("dplunge"),
-            helix_pitch=num("pitch"),
+            bit_type=("endmill", "drill")[self.bit.GetSelection()],
+            hole_tool=int(num("dtool")), hole_dia=num("ddia"),
+            hole_feed=num("dfeed"), hole_plunge=num("dplunge"),
+            helix_pitch=num("pitch"), peck_depth=num("peck"),
+            max_drill_changes=int(num("maxchg")),
             cut_tool=int(num("ctool")), cut_dia=num("cdia"),
             cut_feed=num("cfeed"), cut_plunge=num("cplunge"),
             cut_stepdown=num("step"),

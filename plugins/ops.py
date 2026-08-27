@@ -55,6 +55,33 @@ def mill_hole(w, hole, tool_dia, depth, feed, plunge_feed, pitch):
     w.retract()
 
 
+def peck_hole(w, hole, depth, feed, peck):
+    """One hole with a twist drill: straight down, in pecks, no lateral motion.
+
+    A twist drill has no side flutes and no radial stiffness -- any sideways
+    move snaps it. So this emits pure Z motion and nothing else. Full retract
+    between pecks clears the chips; FR4 dust packs a small flute fast.
+    """
+    w.comment("%.2fmm %s hole at X%.3f Y%.3f (peck)"
+              % (hole.dia, hole.kind, hole.x, hole.y))
+    w.rapid_xy(hole.x, hole.y)
+    w.rapid_z(w.clearance)
+    prev = 0.0
+    while prev > -depth + 1e-9:
+        z = max(-depth, prev - peck)
+        if prev < -1e-9:
+            w.rapid_z(prev + 0.2)     # back down the open hole, stop short
+        w.feed_z(z, feed)
+        w.rapid_z(w.clearance)        # full retract: clear the flutes
+        prev = z
+    w.retract()
+
+
+def peck_all(w, holes, depth, feed, peck):
+    for hole in order_nearest(holes):
+        peck_hole(w, hole, depth, feed, peck)
+
+
 def drill_all(w, holes, tool_dia, depth, feed, plunge_feed, pitch):
     for hole in order_nearest(holes):
         mill_hole(w, hole, tool_dia, depth, feed, plunge_feed, pitch)

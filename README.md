@@ -20,12 +20,49 @@ entire contract between them.
 1. **Collects holes** from the pcbnew API — through-hole pads, and vias only if
    you ask. Holes lying outside Edge.Cuts are treated as fixture holes and cut
    first, with an optional pause to fit dowel pins.
-2. **Mills each hole helically** at `(hole − tool) / 2` radius, or plunges it
-   when the bit is already the hole size.
+2. **Makes each hole** with whichever bit you told it is in the spindle — see
+   below, because the two are not interchangeable.
 3. **Offsets the outline** by the cutter radius and cuts it last, with holding
    tabs, because that's the op that frees the part.
 4. **Verifies its own output** and refuses to write anything that would
    misbehave on the machine.
+
+## Which bit is in the spindle
+
+This is the one setting you cannot get wrong, so it is a radio button rather
+than a number, and the `M6` prompt spells it out with the bit in your hand:
+
+```
+(MSG, Install T1: 0.70mm CORN/FISHTAIL END MILL (NOT a twist drill))
+(MSG, Install T2: 0.90mm TWIST DRILL (NOT an end mill))
+```
+
+|                | Corn / fishtail end mill | Twist drill |
+| -------------- | ------------------------ | ----------- |
+| Toolpath       | helical, cuts sideways   | pecked, pure Z |
+| Bit vs hole    | any bit ≤ the hole       | must equal the hole |
+| Bits needed    | one, for every size      | one per distinct size |
+| Tool changes   | 1                        | 1 per size |
+
+**An end mill is assumed by default and required by the helical path.** A twist
+drill has no side flutes and no radial stiffness: a 0.90mm hole with a 0.70mm
+bit is a helix at 0.10mm radius, and a drill snaps on the first revolution. That
+is why "0.70mm bit" is never printed on its own anywhere in the output.
+
+Twist drill mode pecks straight down and retracts fully between pecks — FR4 dust
+packs a small flute fast, and that is what breaks drills that are otherwise
+being used correctly. Because a drill only makes its own diameter, the bit size
+is taken *from each hole* and every distinct diameter gets its own tool change;
+the header lists the bits you will be asked for before you start:
+
+```
+( BITS NEEDED, in this order: )
+(   T1 = 2.05mm TWIST DRILL (NOT an end mill)  (2 hole(s)) )
+(   T2 = 0.90mm TWIST DRILL (NOT an end mill)  (2 hole(s)) )
+```
+
+The **outline cutter is always an end mill**, in both modes. Contouring is
+lateral cutting by definition, so nothing else can do it.
 
 ## No external tools
 
@@ -106,7 +143,15 @@ is off — forbidden codes, overspeed, motion before the first `M6`, Z deeper th
 the cut depth, an arc with no `I`/`J`, coordinates implying a units or origin
 bug, or a program that doesn't end `M5 → G28 → M2`.
 
-The generator refuses before that, too: a bit wider than the smallest hole, tabs
+In twist drill mode the check is stronger and exact. The outline cut is emitted
+as straight segments (Clipper polygonises the curves), so helical hole milling
+is the *only* thing in this generator that can produce a `G2`/`G3`. That makes
+**"contains no arcs at all"** a complete, checkable proof that nothing asks a
+drill to move sideways — and it is checked, on the output text, every time.
+
+The generator refuses before that, too: a bit wider than the smallest hole,
+more twist-drill bit changes than you allowed, drill tool numbers colliding
+with the cutter's, tabs
 at or below the cut depth, tabs that don't fit around the perimeter, an outline
 the cutter would collapse to nothing, and **oval/slotted drills** — a slot has to
 be routed, and one round hole in the middle of it looks right in a preview and is
