@@ -46,6 +46,27 @@ Holes lying **outside** `Edge.Cuts` are treated as fixture holes: cut first, so
 the blank can be pinned before anything else happens, with an optional pause to
 fit the pins. They are always cut first; the checkbox only controls the pause.
 
+## Drilling bottom-up
+
+Tick **Bottom-up: mirror about X=0** when the board's *bottom* faces the
+spindle — a single-sided blank with its traces on B.Cu, clamped copper side up.
+Without it every coordinate is as seen from the top, and on a flipped blank that
+is a mirror image of the footprints: the holes miss.
+
+- X is negated about **X=0, the drill/place origin** — the same transform
+  `kicad-lightburn-plugin` applies to its back-side artwork, so the laser and
+  the mill still share one datum after the flip. Mirroring about the board
+  centre would keep coordinates positive but move the datum to a different
+  physical corner.
+- Flip the blank **left-to-right**, like turning a page. Y is never mirrored.
+- The origin corner is now on the **right** of the board, so every X in the job
+  is negative. The header and setup sheet say which side is up and print the
+  job's X/Y extent, so a wrong origin shows up before the first plunge.
+- Negating X reverses a polygon's winding, which would quietly swap climb and
+  conventional milling on the outline. Mirrored paths are walked the other way,
+  so the cut direction matches a top-down run. Tabs are placed by arc length
+  and come out as the exact mirror of the top-down tabs.
+
 ## Which bit is in the spindle
 
 This is the one setting you cannot get wrong, so it is a radio button rather
@@ -132,6 +153,9 @@ does both — so a split job does not overwrite itself:
 PCB1_z1_holes.ngc      PCB1_z1_holes_setup.txt
 PCB1_z1_outline.ngc    PCB1_z1_outline_setup.txt
 ```
+
+A bottom-up run adds `_bottom` (`PCB1_z1_bottom.ngc`, `PCB1_z1_holes_bottom.ngc`),
+so it can never overwrite the top-down program for the same board.
 
 Splitting is the normal shape when something happens to the board in between:
 drill, take it away to be ablated or plated or inspected, bring it back, cut it
