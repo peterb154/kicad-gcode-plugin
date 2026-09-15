@@ -46,6 +46,44 @@ Holes lying **outside** `Edge.Cuts` are treated as fixture holes: cut first, so
 the blank can be pinned before anything else happens, with an optional pause to
 fit the pins. They are always cut first; the checkbox only controls the pause.
 
+## Drilling bottom-up
+
+Tick **Bottom-up: mirror about X=0** when the board's *bottom* faces the
+spindle — a single-sided blank with its traces on B.Cu, clamped copper side up.
+Without it every coordinate is as seen from the top, and on a flipped blank that
+is a mirror image of the footprints: the holes miss.
+
+- X is negated about **X=0, the drill/place origin** — the same transform
+  `kicad-lightburn-plugin` applies to its back-side artwork, so the laser and
+  the mill still share one datum after the flip. Mirroring about the board
+  centre would keep coordinates positive but move the datum to a different
+  physical corner.
+- Flip the blank **left-to-right**, like turning a page. Y is never mirrored.
+- The drill/place origin stays the same physical point, now on the **opposite
+  side** of the board. With the usual bottom-left origin the job runs in −X —
+  but the header and setup sheet print the job's actual X/Y extent rather than
+  assuming, so a wrong origin shows up before the first plunge.
+- Negating X reverses a polygon's winding, which would quietly swap climb and
+  conventional milling on the outline. Mirrored paths are walked the other way,
+  so the cut direction matches a top-down run. Tabs are placed by arc length
+  and come out as the exact mirror of the top-down tabs.
+
+### Checking the mirror
+
+`scripts/check_mirror.py` renders a real board top-down and bottom-up with the
+plugin's own code and asserts the mirror holds: twist-drill lines identical
+except X negated, helical hole centres mirrored with the helix otherwise
+untouched, and the outline set-equal under X negation with the same winding
+and the same tab sequence. Run it with KiCad's bundled Python after touching
+anything in `geometry.py`, `holes.py` or `ops.py`:
+
+```sh
+/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 \
+  scripts/check_mirror.py path/to/board.kicad_pcb
+```
+
+The board needs at least one round through-hole and a closed `Edge.Cuts`.
+
 ## Which bit is in the spindle
 
 This is the one setting you cannot get wrong, so it is a radio button rather
@@ -132,6 +170,9 @@ does both — so a split job does not overwrite itself:
 PCB1_z1_holes.ngc      PCB1_z1_holes_setup.txt
 PCB1_z1_outline.ngc    PCB1_z1_outline_setup.txt
 ```
+
+A bottom-up run adds `_bottom` (`PCB1_z1_bottom.ngc`, `PCB1_z1_holes_bottom.ngc`),
+so it can never overwrite the top-down program for the same board.
 
 Splitting is the normal shape when something happens to the board in between:
 drill, take it away to be ablated or plated or inspected, bring it back, cut it

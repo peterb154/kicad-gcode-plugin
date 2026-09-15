@@ -25,8 +25,11 @@ class HoleError(RuntimeError):
     pass
 
 
-def collect(board, include_vias=False):
-    """Every drillable hole, in machine mm relative to the aux origin."""
+def collect(board, include_vias=False, mirror=False):
+    """Every drillable hole, in machine mm relative to the aux origin.
+
+    mirror negates X for a bottom-up run (see geometry's module docstring).
+    """
     origin = geometry.aux_origin_iu(board)
     holes = []
 
@@ -34,7 +37,7 @@ def collect(board, include_vias=False):
         for t in board.GetTracks():
             if isinstance(t, pcbnew.PCB_VIA):
                 p = t.GetPosition()
-                x, y = geometry.to_machine(p.x, p.y, origin)
+                x, y = geometry.to_machine(p.x, p.y, origin, mirror)
                 holes.append(Hole(x, y, pcbnew.ToMM(t.GetDrillValue()), "via"))
 
     slots = []
@@ -48,7 +51,7 @@ def collect(board, include_vias=False):
             if dx <= 0 or dy <= 0:
                 continue
             p = pad.GetPosition()
-            x, y = geometry.to_machine(p.x, p.y, origin)
+            x, y = geometry.to_machine(p.x, p.y, origin, mirror)
             if abs(dx - dy) > 0.001:
                 slots.append("%s pad %s (%.2f x %.2f mm) at %.2f, %.2f"
                              % (fp.GetReference(), pad.GetNumber(), dx, dy, x, y))
@@ -66,9 +69,13 @@ def collect(board, include_vias=False):
     return holes
 
 
-def partition(board, holes):
-    """Split into (registration, inside) by the board outline."""
-    polys = geometry.outline_points(board)
+def partition(board, holes, mirror=False):
+    """Split into (registration, inside) by the board outline.
+
+    mirror must match what collect() was given: the outline and the holes have
+    to be in the same frame for the inside/outside test to mean anything.
+    """
+    polys = geometry.outline_points(board, mirror)
     reg, inside = [], []
     for h in holes:
         (inside if geometry.contains(polys, h.x, h.y) else reg).append(h)

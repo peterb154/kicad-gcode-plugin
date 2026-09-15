@@ -1,6 +1,6 @@
 """Board geometry -> machine coordinates.
 
-Two conversions happen here and nowhere else, because getting either one wrong
+Three conversions happen here and nowhere else, because getting any one wrong
 produces g-code that looks completely plausible and ruins a board:
 
 1. ORIGIN. Everything is referenced to the aux (drill/place) origin -- the same
@@ -10,6 +10,15 @@ produces g-code that looks completely plausible and ruins a board:
 2. Y SIGN. KiCad's Y axis points DOWN; the machine's points UP. Every coordinate
    leaving this module is negated in Y. Skip it and the board comes out mirrored
    top-to-bottom, which on a symmetric outline is invisible until the holes miss.
+
+3. MIRROR (bottom-up runs only). With the board's bottom facing the spindle --
+   a single-sided blank with its traces on B.Cu, clamped copper side up -- the
+   pattern must be flipped left-right. X is negated about X=0, the drill/place
+   origin, which is exactly how kicad-lightburn-plugin mirrors its back-side
+   artwork, so the mill and the laser still share one physical datum after the
+   flip. Negating X also reverses every polygon's winding, which would silently
+   swap climb and conventional milling on the outline, so mirrored paths are
+   walked the other way to cancel it.
 
 Outline offsetting uses SHAPE_POLY_SET.Inflate (Clipper, built into KiCad), so
 there is no pcb2gcode and no Gerber round-trip. Inflate grows *material*, which
@@ -39,13 +48,15 @@ def aux_origin_iu(board):
     return 0, 0
 
 
-def to_machine(x_iu, y_iu, origin):
+def to_machine(x_iu, y_iu, origin, mirror=False):
     """KiCad internal units -> machine mm, relative to the aux origin.
 
-    The Y negation is the KiCad-down / machine-up flip. See the module docstring.
+    The Y negation is the KiCad-down / machine-up flip; mirror negates X for a
+    bottom-up run. See the module docstring for both.
     """
     ox, oy = origin
-    return pcbnew.ToMM(x_iu - ox), -pcbnew.ToMM(y_iu - oy)
+    x = pcbnew.ToMM(x_iu - ox)
+    return (-x if mirror else x), -pcbnew.ToMM(y_iu - oy)
 
 
 def board_outline(board):
@@ -60,23 +71,29 @@ def board_outline(board):
     return ps
 
 
-def _chain_points(chain, origin):
-    pts = [to_machine(chain.CPoint(i).x, chain.CPoint(i).y, origin)
+def _chain_points(chain, origin, mirror=False):
+    pts = [to_machine(chain.CPoint(i).x, chain.CPoint(i).y, origin, mirror)
            for i in range(chain.PointCount())]
-    if pts and pts[0] != pts[-1]:
+    if len(pts) > 1 and pts[0] == pts[-1]:
+        pts.pop()                   # reopen; closed again below
+    if mirror:
+        # Negating X reversed the winding. Walk the other way from the same
+        # start point so the cut direction matches a top-down run.
+        pts = [pts[0]] + list(reversed(pts[1:]))
+    if pts:
         pts.append(pts[0])          # close it
     return pts
 
 
-def outline_points(board):
+def outline_points(board, mirror=False):
     """The un-offset board outline, as closed polylines in machine mm."""
     origin = aux_origin_iu(board)
     ps = board_outline(board)
-    return [_chain_points(ps.Outline(i), origin)
+    return [_chain_points(ps.Outline(i), origin, mirror)
             for i in range(ps.OutlineCount())]
 
 
-def cut_paths(board, cutter_dia_mm):
+def cut_paths(board, cutter_dia_mm, mirror=False):
     """Closed polylines for the outline cut, offset to the waste side.
 
     Returns (paths, dropped) where dropped counts internal cutouts too small for
@@ -99,10 +116,10 @@ def cut_paths(board, cutter_dia_mm):
     paths = []
     after = 0
     for i in range(ps.OutlineCount()):
-        paths.append(_chain_points(ps.Outline(i), origin))
+        paths.append(_chain_points(ps.Outline(i), origin, mirror))
         after += ps.HoleCount(i)
         for j in range(ps.HoleCount(i)):
-            paths.append(_chain_points(ps.Hole(i, j), origin))
+            paths.append(_chain_points(ps.Hole(i, j), origin, mirror))
     return paths, max(0, before - after)
 
 
