@@ -59,13 +59,30 @@ is a mirror image of the footprints: the holes miss.
   centre would keep coordinates positive but move the datum to a different
   physical corner.
 - Flip the blank **left-to-right**, like turning a page. Y is never mirrored.
-- The origin corner is now on the **right** of the board, so every X in the job
-  is negative. The header and setup sheet say which side is up and print the
-  job's X/Y extent, so a wrong origin shows up before the first plunge.
+- The drill/place origin stays the same physical point, now on the **opposite
+  side** of the board. With the usual bottom-left origin the job runs in −X —
+  but the header and setup sheet print the job's actual X/Y extent rather than
+  assuming, so a wrong origin shows up before the first plunge.
 - Negating X reverses a polygon's winding, which would quietly swap climb and
   conventional milling on the outline. Mirrored paths are walked the other way,
   so the cut direction matches a top-down run. Tabs are placed by arc length
   and come out as the exact mirror of the top-down tabs.
+
+### Checking the mirror
+
+`scripts/check_mirror.py` renders a real board top-down and bottom-up with the
+plugin's own code and asserts the mirror holds: twist-drill lines identical
+except X negated, helical hole centres mirrored with the helix otherwise
+untouched, and the outline set-equal under X negation with the same winding
+and the same tab sequence. Run it with KiCad's bundled Python after touching
+anything in `geometry.py`, `holes.py` or `ops.py`:
+
+```sh
+/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 \
+  scripts/check_mirror.py path/to/board.kicad_pcb
+```
+
+The board needs at least one round through-hole and a closed `Edge.Cuts`.
 
 ## Which bit is in the spindle
 

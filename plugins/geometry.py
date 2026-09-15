@@ -79,7 +79,7 @@ def _chain_points(chain, origin, mirror=False):
     if mirror:
         # Negating X reversed the winding. Walk the other way from the same
         # start point so the cut direction matches a top-down run.
-        pts = pts[:1] + pts[:0:-1]
+        pts = [pts[0]] + list(reversed(pts[1:]))
     if pts:
         pts.append(pts[0])          # close it
     return pts

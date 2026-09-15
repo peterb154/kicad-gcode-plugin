@@ -103,9 +103,10 @@ TIPS = {
                "is how kicad-lightburn-plugin mirrors its back-side artwork, so "
                "the mill and the laser still share one datum after the flip. "
                "Flip the blank left-to-right like a page; Y is never mirrored.\n\n"
-               "The origin corner ends up on the RIGHT of the board and every X "
-               "in the job is negative. Output gets a _bottom suffix so it never "
-               "overwrites a top-down file.\n\n"
+               "The drill/place origin stays the same physical point, now on the "
+               "opposite side of the board; the setup sheet prints where the job "
+               "lands. Output gets a _bottom suffix so it never overwrites a "
+               "top-down file.\n\n"
                "Leave OFF when the component side faces up.",
 }
 

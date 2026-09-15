@@ -157,13 +157,24 @@ class Job(object):
             min(xs), max(xs), min(ys), max(ys))
 
     def side_text(self):
-        """Which face of the blank goes up. Line one is the short form."""
+        """Which face of the blank goes up.
+
+        Line one is the short form, for the setup sheet's Side field. The rest
+        are instructions, rendered by both the g-code header and the sheet from
+        this one list so the two cannot drift apart.
+
+        Only what is always true is claimed. Where the job lands depends on
+        where the drill/place origin sits on the board, so that is left to the
+        printed extent rather than asserted.
+        """
         if not self.opt.mirror_x:
             return ["TOP-DOWN -- component side up."]
-        return ["BOTTOM-UP -- mirrored about X=0. Blank COPPER SIDE UP.",
-                "Flip it left-to-right like a page, NOT top-to-bottom.",
-                "The drill/place origin corner is now on the RIGHT; every X is "
-                "negative."]
+        # Instruction lines stay under ~60 characters: the setup sheet is a
+        # 64-column printout and each line becomes one bullet there.
+        return ["BOTTOM-UP -- mirrored about X=0.",
+                "Clamp the blank COPPER SIDE UP, flipped left-to-right.",
+                "Flip it like a page, NOT top-to-bottom.",
+                "Origin: same drill/place point, now on the other side."]
 
 
 def board_thickness(board):
@@ -294,11 +305,7 @@ def setup_sheet(job, gcode_path):
           "BEFORE YOU START",
           "-" * 64,
           "  * USE A SACRIFICIAL LAYER. Cuts go ~0.2mm past the far face."]
-    if opt.mirror_x:
-        L += ["  * BOTTOM-UP: clamp the blank COPPER SIDE UP. It is flipped",
-              "    left-to-right like a page, NOT top-to-bottom.",
-              "  * The drill/place origin is the corner now on the RIGHT of the",
-              "    board. Every X in this job is negative."]
+    L += ["  * " + line for line in side[1:]]      # empty for a top-down run
     L += ["  * Install T%d, then Tool dropdown -> Change tool -> T%d"
           % (job.steps[0].tool, job.steps[0].tool),
           "    (registers the tool and sets its TLO).",
