@@ -96,6 +96,17 @@ TIPS = {
                "a ViaGrid blank there usually are none -- the blank arrives "
                "with its mounting holes drilled and the job is to locate to "
                "them, not to make them.",
+    "mirror":  "Drill from the BOTTOM of the board: the blank is clamped "
+               "COPPER SIDE UP, e.g. a single-sided board with its traces on "
+               "B.Cu.\n\n"
+               "Every X is negated about X=0 -- the drill/place origin -- which "
+               "is how kicad-lightburn-plugin mirrors its back-side artwork, so "
+               "the mill and the laser still share one datum after the flip. "
+               "Flip the blank left-to-right like a page; Y is never mirrored.\n\n"
+               "The origin corner ends up on the RIGHT of the board and every X "
+               "in the job is negative. Output gets a _bottom suffix so it never "
+               "overwrites a top-down file.\n\n"
+               "Leave OFF when the component side faces up.",
 }
 
 
@@ -147,6 +158,8 @@ class SettingsDialog(wx.Dialog):
         for key, label, default in (
                 ("drill", "Make the holes", True),
                 ("cut", "Cut outline", True),
+                ("mirror", "Bottom-up: mirror about X=0 (blank copper side up)",
+                 False),
                 ("pause", "Pause for dowel pins after registration holes", True),
                 ("vias", "Drill vias (untick for pre-drilled stock)", True),
                 ("sheet", "Write a setup sheet (.txt) next to the g-code", True)):
@@ -223,7 +236,7 @@ class SettingsDialog(wx.Dialog):
             outdir=g("outdir").strip(),
             do_drill=g("drill"), do_cut=g("cut"),
             include_vias=g("vias"), pause_for_pins=g("pause"),
-            write_sheet=g("sheet"),
+            write_sheet=g("sheet"), mirror_x=g("mirror"),
             depth=num("depth"), rpm=int(num("rpm")),
             bit_type=("endmill", "drill")[self.bit.GetSelection()],
             hole_tool=int(num("dtool")), hole_dia=num("ddia"),
