@@ -48,7 +48,7 @@ fit the pins. They are always cut first; the checkbox only controls the pause.
 
 ## Drilling bottom-up
 
-Tick **Bottom-up: mirror about X=0** when the board's *bottom* faces the
+Tick **Bottom-up (mirror about X axis)** when the board's *bottom* faces the
 spindle — a single-sided blank with its traces on B.Cu, clamped copper side up.
 Without it every coordinate is as seen from the top, and on a flipped blank that
 is a mirror image of the footprints: the holes miss.

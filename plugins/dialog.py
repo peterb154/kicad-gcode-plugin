@@ -159,8 +159,7 @@ class SettingsDialog(wx.Dialog):
         for key, label, default in (
                 ("drill", "Make the holes", True),
                 ("cut", "Cut outline", True),
-                ("mirror", "Bottom-up: mirror about X=0 (blank copper side up)",
-                 False),
+                ("mirror", "Bottom-up (mirror about X axis)", False),
                 ("pause", "Pause for dowel pins after registration holes", True),
                 ("vias", "Drill vias (untick for pre-drilled stock)", True),
                 ("sheet", "Write a setup sheet (.txt) next to the g-code", True)):
